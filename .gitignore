@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.swp
+*.egg-info/
+*.egg
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Jupyter
+.ipynb_checkpoints
+
+# Data
+data/
+prepared/
+*.h5
+*.pt
+*.pth
+
+# Logs
+*.log
+*.out
+*.err
+
+# Docker
+*.tar
+*.img
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# System
+.DS_Store
+Thumbs.db
+
+# Но разрешаем маленькую папку с примерами
+!data/example/
+!data/example/*.jpg
