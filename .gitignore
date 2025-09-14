@@ -18,9 +18,9 @@ env/
 # Data
 data/
 prepared/
+!prepared/best_model.pth
 *.h5
-*.pt
-*.pth
+
 
 # Logs
 *.log

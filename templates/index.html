@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InDrive - Анализ повреждений автомобилей</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <h1 class="title">
+                    Анализ повреждений автомобилей
+                </h1>
+                <p class="subtitle">Загрузите фотографию автомобиля для определения наличия повреждений</p>
+            </div>
+        </header>
+
+        <main class="main">
+            <div class="upload-section">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-content">
+                        <div class="upload-icon">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M17 8L12 3L7 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M12 3V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
+                        <h3 class="upload-title">Перетащите изображение сюда</h3>
+                        <p class="upload-subtitle">или</p>
+                        <button type="button" class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                            <span class="btn-icon">📁</span>
+                            Выберите файл
+                        </button>
+                        <div class="file-info">
+                            <p class="supported-formats">Поддерживаемые форматы: JPG, JPEG, PNG, GIF, BMP, WEBP, TIFF</p>
+                            <p class="max-size">Максимальный размер: 10 МБ</p>
+                        </div>
+                        <input type="file" id="fileInput" accept="image/jpeg,image/jpg,image/png,image/gif,image/bmp,image/webp,image/tiff" style="display: none;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="preview-section" id="previewSection" style="display: none;">
+                <div class="preview-header">
+                    <h3 class="preview-title">Предварительный просмотр</h3>
+                    <div class="file-details" id="fileDetails"></div>
+                </div>
+                <div class="image-preview">
+                    <img id="previewImage" alt="Предварительный просмотр">
+                    <div class="image-overlay">
+                        <div class="image-actions">
+                            <button class="action-btn analyze-btn" onclick="analyzeImage()">
+                                <span class="btn-icon">🔍</span>
+                                Анализировать
+                            </button>
+                            <button class="action-btn cancel-btn" onclick="cancelUpload()">
+                                <span class="btn-icon">✕</span>
+                                Отмена
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="loading-section" id="loadingSection" style="display: none;">
+                <div class="loading-container">
+                    <div class="loading-spinner"></div>
+                    <h3 class="loading-title">Анализируем изображение...</h3>
+                    <p class="loading-subtitle">Это может занять несколько секунд</p>
+                </div>
+            </div>
+
+            <div class="result-section" id="resultSection" style="display: none;">
+                <div class="result-header">
+                    <h3 class="result-title">Результат анализа</h3>
+                </div>
+                <div class="result-content">
+                    <div class="prediction" id="predictionResult"></div>
+                    <div class="confidence" id="confidenceResult"></div>
+                    <div class="probabilities" id="probabilitiesResult"></div>
+                </div>
+                <div class="result-actions">
+                    <button class="action-btn new-analysis-btn" onclick="resetForm()">
+                        <span class="btn-icon">🔄</span>
+                        Новый анализ
+                    </button>
+                </div>
+            </div>
+
+            <!-- Уведомления об ошибках -->
+            <div class="notification" id="notification" style="display: none;">
+                <div class="notification-content">
+                    <span class="notification-icon" id="notificationIcon">⚠️</span>
+                    <span class="notification-message" id="notificationMessage"></span>
+                    <button class="notification-close" onclick="hideNotification()">✕</button>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Использует обученную модель ResNet18 для классификации повреждений</p>
+        </footer>
+    </div>
+
+    <script>
+        let selectedFile = null;
+
+        // Поддерживаемые форматы
+        const SUPPORTED_FORMATS = [
+            'image/jpeg',
+            'image/jpg', 
+            'image/png',
+            'image/gif',
+            'image/bmp',
+            'image/webp',
+            'image/tiff'
+        ];
+
+        // Максимальный размер файла (10MB)
+        const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+        // Обработка drag & drop
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+
+        // Обработка выбора файла
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            // Проверяем тип файла
+            if (!SUPPORTED_FORMATS.includes(file.type)) {
+                showNotification('error', 'Неподдерживаемый формат файла. Используйте: JPG, JPEG, PNG, GIF, BMP, WEBP, TIFF');
+                return;
+            }
+
+            // Проверяем размер файла (10MB)
+            if (file.size > MAX_FILE_SIZE) {
+                showNotification('error', `Файл слишком большой. Максимальный размер: ${formatFileSize(MAX_FILE_SIZE)}`);
+                return;
+            }
+
+            selectedFile = file;
+            showPreview(file);
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function showPreview(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('previewImage').src = e.target.result;
+                
+                // Показываем детали файла
+                const fileDetails = document.getElementById('fileDetails');
+                fileDetails.innerHTML = `
+                    <div class="file-detail">
+                        <strong>Имя файла:</strong> ${file.name}
+                    </div>
+                    <div class="file-detail">
+                        <strong>Размер:</strong> ${formatFileSize(file.size)}
+                    </div>
+                    <div class="file-detail">
+                        <strong>Тип:</strong> ${file.type}
+                    </div>
+                `;
+                
+                // Плавное появление превью
+                document.getElementById('previewSection').style.display = 'block';
+                document.getElementById('uploadArea').style.display = 'none';
+                
+                // Анимация появления
+                setTimeout(() => {
+                    document.getElementById('previewSection').style.opacity = '1';
+                    document.getElementById('previewSection').style.transform = 'translateY(0)';
+                }, 10);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function cancelUpload() {
+            selectedFile = null;
+            
+            // Плавное скрытие превью
+            const previewSection = document.getElementById('previewSection');
+            previewSection.style.opacity = '0';
+            previewSection.style.transform = 'translateY(20px)';
+            
+            setTimeout(() => {
+                previewSection.style.display = 'none';
+                document.getElementById('uploadArea').style.display = 'block';
+                fileInput.value = '';
+            }, 300);
+        }
+
+        function analyzeImage() {
+            if (!selectedFile) return;
+
+            // Показываем загрузку с анимацией
+            document.getElementById('previewSection').style.display = 'none';
+            document.getElementById('loadingSection').style.display = 'block';
+            
+            // Анимация появления загрузки
+            setTimeout(() => {
+                document.getElementById('loadingSection').style.opacity = '1';
+                document.getElementById('loadingSection').style.transform = 'translateY(0)';
+            }, 10);
+
+            // Отправляем файл на сервер
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                showResult(data);
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                showNotification('error', 'Ошибка при анализе изображения: ' + error.message);
+                resetForm();
+            });
+        }
+
+        function showResult(data) {
+            // Плавное скрытие загрузки
+            const loadingSection = document.getElementById('loadingSection');
+            loadingSection.style.opacity = '0';
+            loadingSection.style.transform = 'translateY(-20px)';
+            
+            setTimeout(() => {
+                loadingSection.style.display = 'none';
+                
+                // Показываем результат с анимацией
+                document.getElementById('resultSection').style.display = 'block';
+                setTimeout(() => {
+                    document.getElementById('resultSection').style.opacity = '1';
+                    document.getElementById('resultSection').style.transform = 'translateY(0)';
+                }, 10);
+            }, 300);
+            
+            const prediction = document.getElementById('predictionResult');
+            const confidence = document.getElementById('confidenceResult');
+            const probabilities = document.getElementById('probabilitiesResult');
+
+            // Результат предсказания
+            prediction.innerHTML = `
+                <div class="prediction-text ${data.prediction === 'Поврежден' ? 'damage' : 'no-damage'}">
+                    ${data.prediction === 'Поврежден' ? '⚠️ Обнаружены повреждения' : '✅ Повреждений не обнаружено'}
+                </div>
+            `;
+
+            // Уверенность
+            confidence.innerHTML = `
+                <div class="confidence-text">
+                    Уверенность: <span class="confidence-value">${(data.confidence * 100).toFixed(1)}%</span>
+                </div>
+            `;
+
+            // Детальные вероятности
+            probabilities.innerHTML = `
+                <div class="probabilities-details">
+                    <div class="prob-item">
+                        <span class="prob-label">Не поврежден:</span>
+                        <div class="prob-bar">
+                            <div class="prob-fill" style="width: ${data.probabilities.no_damage * 100}%"></div>
+                        </div>
+                        <span class="prob-value">${(data.probabilities.no_damage * 100).toFixed(1)}%</span>
+                    </div>
+                    <div class="prob-item">
+                        <span class="prob-label">Поврежден:</span>
+                        <div class="prob-bar">
+                            <div class="prob-fill damage" style="width: ${data.probabilities.damage * 100}%"></div>
+                        </div>
+                        <span class="prob-value">${(data.probabilities.damage * 100).toFixed(1)}%</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function resetForm() {
+            selectedFile = null;
+            
+            // Плавное скрытие всех секций
+            const sections = ['resultSection', 'previewSection'];
+            sections.forEach(sectionId => {
+                const section = document.getElementById(sectionId);
+                if (section.style.display !== 'none') {
+                    section.style.opacity = '0';
+                    section.style.transform = 'translateY(20px)';
+                    
+                    setTimeout(() => {
+                        section.style.display = 'none';
+                    }, 300);
+                }
+            });
+            
+            // Показываем область загрузки
+            setTimeout(() => {
+                document.getElementById('uploadArea').style.display = 'block';
+                fileInput.value = '';
+            }, 300);
+        }
+
+        // Функции для уведомлений
+        function showNotification(type, message) {
+            const notification = document.getElementById('notification');
+            const icon = document.getElementById('notificationIcon');
+            const messageEl = document.getElementById('notificationMessage');
+            
+            // Устанавливаем иконку в зависимости от типа
+            switch(type) {
+                case 'error':
+                    icon.textContent = '⚠️';
+                    break;
+                case 'success':
+                    icon.textContent = '✅';
+                    break;
+                case 'warning':
+                    icon.textContent = '⚠️';
+                    break;
+                default:
+                    icon.textContent = 'ℹ️';
+            }
+            
+            messageEl.textContent = message;
+            notification.style.display = 'block';
+            
+            // Автоматически скрываем через 5 секунд
+            setTimeout(() => {
+                hideNotification();
+            }, 5000);
+        }
+
+        function hideNotification() {
+            const notification = document.getElementById('notification');
+            notification.style.display = 'none';
+        }
+    </script>
+</body>
+</html>

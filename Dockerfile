@@ -12,11 +12,17 @@ RUN apt-get update && apt-get install -y libgl1 libglib2.0-0 && rm -rf /var/lib/
 # Рабочая директория
 WORKDIR /app
 
-# Копируем скрипты
-COPY download_datasets.py /app/download_datasets.py
-COPY prepare_data.py /app/prepare_data.py
-COPY train_classifier.py /app/train_classifier.py
-COPY test_single_image.py /app/test_single_image.py
+# Копируем все файлы проекта
+COPY . /app/
 
 # Создаем папки для хранения данных
-RUN mkdir -p /app/data /app/prepared_data
+RUN mkdir -p /app/data /app/prepared /app/uploads /app/static /app/templates
+
+# Устанавливаем права на выполнение
+RUN chmod +x /app/run_web_app.py
+
+# Открываем порт для веб-приложения
+EXPOSE 5000
+
+# Команда по умолчанию - запуск веб-приложения
+CMD ["python", "run_web_app.py", "--host", "0.0.0.0", "--port", "5000"]
