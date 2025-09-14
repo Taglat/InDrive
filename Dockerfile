@@ -15,9 +15,8 @@ WORKDIR /app
 # Копируем скрипты
 COPY download_datasets.py /app/download_datasets.py
 COPY prepare_data.py /app/prepare_data.py
+COPY train_classifier.py /app/train_classifier.py
+COPY test_single_image.py /app/test_single_image.py
 
 # Создаем папки для хранения данных
 RUN mkdir -p /app/data /app/prepared_data
-
-# ENTRYPOINT для гибкого запуска любого скрипта
-ENTRYPOINT ["python"]

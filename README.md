@@ -18,7 +18,7 @@ docker run --rm -e ROBOFLOW_API_KEY="ваш_ключ" `
 ```bash
 docker run --rm -e ROBOFLOW_API_KEY="ваш_ключ" `
            -v ${PWD}/data:/app/data `
-           -v ${PWD}/prepared:/app/prepared_data `
+           -v ${PWD}/prepared:/app/prepared `
            car-visual-check prepare_data.py
 ```
 
@@ -31,3 +31,12 @@ docker run -e ROBOFLOW_API_KEY="ключ" -v $(pwd)/data:/app/data car-visual-ch
 ```
 
 ---
+
+docker run --rm -e ROBOFLOW_API_KEY="3qCQ6UK3ceg9YNx9I3lp" `
+           -v ${PWD}/data:/app/data `
+           car-visual-check python download_datasets.py
+
+docker run --rm -e ROBOFLOW_API_KEY="3qCQ6UK3ceg9YNx9I3lp" `
+           -v ${PWD}/data:/app/data `
+           -v ${PWD}/prepared:/app/prepared `
+           car-visual-check python prepare_data.py
